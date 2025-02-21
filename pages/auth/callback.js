@@ -7,11 +7,18 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      const { error } = await supabase.auth.getSession()
+      const { data: { session }, error } = await supabase.auth.getSession()
       if (error) {
         console.error('Error during auth callback:', error)
+        router.push('/login')
+        return
       }
-      router.push('/')
+      // Only redirect to root if we have a valid session
+      if (session) {
+        router.push('/')
+      } else {
+        router.push('/login')
+      }
     }
 
     handleAuthCallback()
