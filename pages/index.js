@@ -2,11 +2,23 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Navbar from '../components/Navbar';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 
 const IndexPage = () => {
+  const router = useRouter();
   const [topics, setTopics] = useState([]);
   const [filter, setFilter] = useState("open");
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/login');
+      }
+    };
+    checkAuth();
+  }, []);
 
   const fetchTopics = async () => {
     try {
