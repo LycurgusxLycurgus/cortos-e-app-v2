@@ -27,17 +27,24 @@ export default function AuthGuard({ children }) {
         }
       } catch (error) {
         console.error('Auth check error:', error);
-        router.push('/login'); // Even on error, redirect to login
+        router.push('/login');
       } finally {
         setLoading(false);
       }
     };
 
-    // Set up auth state listener
+    // Set up auth state listener with the same logic as checkAuth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthenticated(!!session);
+      
+      // Use the same redirect logic as checkAuth
       if (!session && !publicRoutes.includes(router.pathname)) {
         router.push('/login');
+        return;
+      }
+      
+      if (session && router.pathname === '/login') {
+        router.push('/');
       }
     });
 
