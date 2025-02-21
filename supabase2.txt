@@ -1,0 +1,38 @@
+-- First drop existing policies
+drop policy if exists "Allow public read access for topics" on topics;
+drop policy if exists "Allow public read access for comments" on comments;
+drop policy if exists "Allow authenticated users to create topics" on topics;
+drop policy if exists "Allow authenticated users to create comments" on comments;
+drop policy if exists "Allow users to update their own topics" on topics;
+
+-- Enable RLS
+alter table topics enable row level security;
+alter table comments enable row level security;
+
+-- Allow read access to everyone
+create policy "Allow public read access for topics"
+on topics for select
+to public
+using (true);
+
+create policy "Allow public read access for comments"
+on comments for select
+to public
+using (true);
+
+-- Allow authenticated users to create
+create policy "Allow authenticated users to create topics"
+on topics for insert
+to authenticated
+with check (true);
+
+create policy "Allow authenticated users to create comments"
+on comments for insert
+to authenticated
+with check (true);
+
+-- Allow topic creators to update their own topics
+create policy "Allow users to update their own topics"
+on topics for update
+to authenticated
+using (auth.uid()::text = author_id::text);
