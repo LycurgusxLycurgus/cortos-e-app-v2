@@ -31,30 +31,30 @@ function MyApp({ Component, pageProps }) {
       // First try to get the existing profile
       const { data: existingProfile, error: fetchError } = await supabase
         .from('profiles')
-        .select()
+        .select('*')
         .eq('id', user.id)
         .single();
 
-      if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means no rows returned
-        console.error('Error fetching profile:', fetchError);
-        return;
-      }
-
-      if (!existingProfile) {
-        // Create new profile if it doesn't exist
-        const { error: insertError } = await supabase
+      if (fetchError && fetchError.code === 'PGRST116') { // No profile exists
+        // Use upsert instead of insert to handle race conditions
+        const { error: upsertError } = await supabase
           .from('profiles')
-          .insert({
+          .upsert({
             id: user.id,
             username: user.email?.split('@')[0] || 'user',
             avatar_url: null,
             bio: null,
             updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'id',
+            ignoreDuplicates: true
           });
 
-        if (insertError) {
-          console.error('Error creating profile:', insertError);
+        if (upsertError) {
+          console.error('Error upserting profile:', upsertError);
         }
+      } else if (fetchError) {
+        console.error('Error fetching profile:', fetchError);
       }
     } catch (error) {
       console.error('Error in createOrUpdateProfile:', error);

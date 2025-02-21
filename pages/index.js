@@ -9,23 +9,36 @@ const IndexPage = () => {
   const [search, setSearch] = useState("");
 
   const fetchTopics = async () => {
-    let query = supabase
-      .from('topics')
-      .select(`
-        *,
-        author:profiles(username)
-      `)
-      .order('created_at', { ascending: false });
-    
-    if (filter !== "all") {
-      query = query.eq('status', filter);
-    }
-    if (search) {
-      query = query.ilike('title', `%${search}%`);
-    }
-    const { data, error } = await query;
-    if (!error) {
-      setTopics(data);
+    try {
+      let query = supabase
+        .from('topics')
+        .select(`
+          id,
+          title,
+          description,
+          status,
+          meeting_link,
+          created_at,
+          author:profiles(username)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(20); // Add pagination to improve performance
+      
+      if (filter !== "all") {
+        query = query.eq('status', filter);
+      }
+      if (search) {
+        query = query.ilike('title', `%${search}%`);
+      }
+      
+      const { data, error } = await query;
+      if (error) {
+        console.error('Error fetching topics:', error);
+        return;
+      }
+      setTopics(data || []);
+    } catch (error) {
+      console.error('Error in fetchTopics:', error);
     }
   };
 
@@ -93,7 +106,7 @@ const IndexPage = () => {
         <div className="flex justify-between items-center mb-8 border-b-2 border-black pb-4">
           <h1 className="newspaper-headline">Latest Discussions</h1>
           <Link href="/create" className="newspaper-button">
-            Start Discussion
+            New Topic
           </Link>
         </div>
 
