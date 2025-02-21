@@ -10,15 +10,7 @@ const Login = () => {
   const router = useRouter();
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        router.push('/');
-        return;
-      }
-      setLoading(false);
-    };
-    checkSession();
+    setLoading(false);
   }, []);
 
   const handleSendMagicLink = async (e) => {
