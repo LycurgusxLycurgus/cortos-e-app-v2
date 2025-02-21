@@ -20,11 +20,6 @@ export default function AuthGuard({ children }) {
           router.push('/login');
           return;
         }
-        
-        // Only redirect to home if we're on login page and authenticated
-        if (session && router.pathname === '/login') {
-          router.push('/');
-        }
       } catch (error) {
         console.error('Auth check error:', error);
         router.push('/login');
@@ -37,14 +32,10 @@ export default function AuthGuard({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthenticated(!!session);
       
-      // Use the same redirect logic as checkAuth
+      // If not authenticated and not on a public route, redirect to /login
       if (!session && !publicRoutes.includes(router.pathname)) {
         router.push('/login');
         return;
-      }
-      
-      if (session && router.pathname === '/login') {
-        router.push('/');
       }
     });
 
@@ -56,17 +47,6 @@ export default function AuthGuard({ children }) {
   }, [router.pathname]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-        </div>
-      </div>
-    );
-  }
-
-  // If it's the login page and user is authenticated, show loading
-  if (router.pathname === '/login' && authenticated) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
