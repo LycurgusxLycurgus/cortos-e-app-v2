@@ -15,18 +15,19 @@ export default function AuthGuard({ children }) {
         const { data: { session } } = await supabase.auth.getSession();
         setAuthenticated(!!session);
         
-        if (!session && router.pathname === '/') {
+        // Always redirect to /login if not authenticated
+        if (!session && !publicRoutes.includes(router.pathname)) {
           router.push('/login');
           return;
         }
         
-        if (!session && !publicRoutes.includes(router.pathname)) {
-          router.push('/login');
-        } else if (session && router.pathname === '/login') {
+        // Only redirect to home if we're on login page and authenticated
+        if (session && router.pathname === '/login') {
           router.push('/');
         }
       } catch (error) {
         console.error('Auth check error:', error);
+        router.push('/login'); // Even on error, redirect to login
       } finally {
         setLoading(false);
       }

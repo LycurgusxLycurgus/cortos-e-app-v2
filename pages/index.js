@@ -10,16 +10,6 @@ const IndexPage = () => {
   const [filter, setFilter] = useState("open");
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push('/login');
-      }
-    };
-    checkAuth();
-  }, []);
-
   const fetchTopics = async () => {
     try {
       let query = supabase
