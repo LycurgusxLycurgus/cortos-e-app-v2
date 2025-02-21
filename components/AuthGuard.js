@@ -15,7 +15,12 @@ export default function AuthGuard({ children }) {
         const { data: { session } } = await supabase.auth.getSession();
         setAuthenticated(!!session);
         
-        if (!session && (!publicRoutes.includes(router.pathname) || router.pathname === '/')) {
+        if (!session && router.pathname === '/') {
+          router.push('/login');
+          return;
+        }
+        
+        if (!session && !publicRoutes.includes(router.pathname)) {
           router.push('/login');
         } else if (session && router.pathname === '/login') {
           router.push('/');
