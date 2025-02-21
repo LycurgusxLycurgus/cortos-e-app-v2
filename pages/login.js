@@ -57,7 +57,7 @@ const Login = () => {
                     type="email"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
-                    className="newspaper-input border rounded"
+                    className="newspaper-input border"
                     placeholder="Enter your email"
                     required
                   />
