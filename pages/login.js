@@ -1,13 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { useRouter } from 'next/router';
 import Navbar from '../components/Navbar';
 
 const Login = () => {
   const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [linkSent, setLinkSent] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        router.push('/');
+        return;
+      }
+      setLoading(false);
+    };
+    checkSession();
+  }, []);
 
   const handleSendMagicLink = async (e) => {
     e.preventDefault();
@@ -33,6 +45,16 @@ const Login = () => {
       setLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900">
