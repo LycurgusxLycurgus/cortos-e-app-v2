@@ -9,42 +9,44 @@ export default function AuthGuard({ children }) {
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
 
+  // (1) Run an initial auth check once on mount.
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         setAuthenticated(!!session);
-        
-        // Always redirect to /login if not authenticated
-        if (!session && !publicRoutes.includes(router.pathname)) {
-          router.push('/login');
-          return;
-        }
       } catch (error) {
         console.error('Auth check error:', error);
-        router.push('/login');
       } finally {
         setLoading(false);
       }
     };
 
-    // Set up auth state listener with the same logic as checkAuth
+    checkAuth();
+  }, []);
+
+  // (2) Listen for auth state changes once.
+  useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthenticated(!!session);
-      
-      // If not authenticated and not on a public route, redirect to /login
-      if (!session && !publicRoutes.includes(router.pathname)) {
-        router.push('/login');
-        return;
-      }
     });
-
-    checkAuth();
-
     return () => {
       subscription?.unsubscribe();
     };
-  }, [router.pathname]);
+  }, []);
+
+  // (3) Once loading is done, handle redirection:
+  //     - If not authenticated and on a protected route, send to /login.
+  //     - If authenticated and on /login, push them to root.
+  useEffect(() => {
+    if (!loading) {
+      if (!authenticated && !publicRoutes.includes(router.pathname)) {
+        router.push('/login');
+      } else if (authenticated && router.pathname === '/login') {
+        router.push('/');
+      }
+    }
+  }, [loading, authenticated, router.pathname, router]);
 
   if (loading) {
     return (
