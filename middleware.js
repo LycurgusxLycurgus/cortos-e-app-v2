@@ -5,10 +5,32 @@ export async function middleware(req) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
 
-  // Refresh session if expired
-  await supabase.auth.getSession();
+  try {
+    // Try to refresh the session
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    // If there's no session and the path isn't public, redirect to login
+    if (!session && !isPublicPath(req.nextUrl.pathname)) {
+      return NextResponse.redirect(new URL('/login', req.url));
+    }
+  } catch (error) {
+    console.error('Middleware auth error:', error);
+    // On error, redirect to login for safety
+    return NextResponse.redirect(new URL('/login', req.url));
+  }
 
   return res;
+}
+
+function isPublicPath(pathname) {
+  const publicPaths = [
+    '/login',
+    '/register',
+    '/auth/callback',
+    '/_next',
+    '/api/auth'
+  ];
+  return publicPaths.some(path => pathname.startsWith(path));
 }
 
 export const config = {
