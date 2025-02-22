@@ -2,12 +2,27 @@ import '../styles/globals.css';
 import { useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import AuthGuard from '../components/AuthGuard';
+import { ErrorBoundary } from 'react-error-boundary';
+
+function ErrorFallback({ error, resetErrorBoundary }) {
+  return (
+    <div role="alert" className="flex flex-col items-center justify-center min-h-screen">
+      <p className="text-red-500">Something went wrong:</p>
+      <pre className="text-white">{error.message}</pre>
+      <button
+        onClick={resetErrorBoundary}
+        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
 
 function MyApp({ Component, pageProps }) {
   useEffect(() => {
     // Force a session refresh on app mount
     const refreshSession = async () => {
-      // Wait a bit before forcing session detection
       await new Promise(resolve => setTimeout(resolve, 100));
       await supabase.auth.getSession(); // Trigger internal session detection
     };
@@ -72,9 +87,14 @@ function MyApp({ Component, pageProps }) {
   };
 
   return (
-    <AuthGuard>
-      <Component {...pageProps} />
-    </AuthGuard>
+    <ErrorBoundary
+      FallbackComponent={ErrorFallback}
+      onReset={() => window.location.reload()}
+    >
+      <AuthGuard>
+        <Component {...pageProps} />
+      </AuthGuard>
+    </ErrorBoundary>
   );
 }
 

@@ -1,4 +1,3 @@
-// Filename: ./components/AuthGuard.js
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase, getValidSession } from '../utils/supabaseClient';
@@ -10,6 +9,7 @@ export default function AuthGuard({ children }) {
   const router = useRouter();
   const [session, setSession] = useState(undefined);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -19,10 +19,12 @@ export default function AuthGuard({ children }) {
         const currentSession = await getValidSession();
         if (mounted) {
           setSession(currentSession);
+          setAuthError(null);
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
         if (mounted) {
+          setAuthError(error);
           setSession(null);
         }
       }
@@ -32,14 +34,20 @@ export default function AuthGuard({ children }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state change:', event, !!session);
-        if (mounted) {
-          if (event === 'SIGNED_OUT') {
-            setSession(null);
-          } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            const validSession = await getValidSession();
-            setSession(validSession);
+        try {
+          console.log('Auth state change:', event, !!session);
+          if (mounted) {
+            if (event === 'SIGNED_OUT') {
+              setSession(null);
+            } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+              const validSession = await getValidSession();
+              setSession(validSession);
+              setAuthError(null);
+            }
           }
+        } catch (error) {
+          console.error('Error in auth state change handler:', error);
+          setAuthError(error);
         }
       }
     );
@@ -59,13 +67,13 @@ export default function AuthGuard({ children }) {
         await new Promise(resolve => setTimeout(resolve, 100));
 
         if (!session && !publicRoutes.includes(router.pathname)) {
-          // Replace instead of push to avoid stacking history entries
           await router.replace('/login');
         } else if (session && router.pathname === '/login') {
           await router.replace('/');
         }
       } catch (error) {
         console.error('Navigation error:', error);
+        setAuthError(error);
       } finally {
         setIsNavigating(false);
       }
@@ -73,6 +81,23 @@ export default function AuthGuard({ children }) {
 
     handleNavigation();
   }, [router.isReady, session, router.pathname]);
+
+  if (authError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-red-500">An error occurred during authentication:</p>
+          <pre className="text-red-400">{authError.message}</pre>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (session === undefined) {
     return (
