@@ -11,8 +11,8 @@
     "next": "^13.4.19",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "@supabase/supabase-js": "^2.0.0",
-    "@supabase/auth-helpers-nextjs": "^0.6.0",
+    "@supabase/supabase-js": "^2.38.0",
+    "@supabase/auth-helpers-nextjs": "^0.8.1",
     "@next/swc-linux-x64-gnu": "^13.4.19"
   },
   "devDependencies": {
