@@ -7,13 +7,28 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      // Use getSessionFromUrl to parse the session from the magic link URL.
-      const { data: { session }, error } = await supabase.auth.getSessionFromUrl();
-      if (error) {
-        console.error('Error retrieving session from URL:', error);
+      try {
+        // First exchange the code for a session
+        await supabase.auth.exchangeCodeForSession(window.location.hash);
+        // Then get the session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error retrieving session:', error);
+          router.push('/login');
+          return;
+        }
+
+        // If we have a session, go to home, otherwise to login
+        if (session) {
+          router.push('/');
+        } else {
+          router.push('/login');
+        }
+      } catch (error) {
+        console.error('Auth callback error:', error);
+        router.push('/login');
       }
-      // Redirect to login (which will then immediately push authenticated users to the root)
-      router.push('/login');
     };
 
     handleAuthCallback();
