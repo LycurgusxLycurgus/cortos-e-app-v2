@@ -1,18 +1,23 @@
-import { useEffect } from 'react'
-import { useRouter } from 'next/router'
-import { supabase } from '../../utils/supabaseClient'
+import { useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { supabase } from '../../utils/supabaseClient';
 
 export default function AuthCallback() {
-  const router = useRouter()
+  const router = useRouter();
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      await supabase.auth.getSession() // Just get the session
-      router.push('/login') // Always redirect to login
-    }
+      // Use getSessionFromUrl to parse the session from the magic link URL.
+      const { data: { session }, error } = await supabase.auth.getSessionFromUrl();
+      if (error) {
+        console.error('Error retrieving session from URL:', error);
+      }
+      // Redirect to login (which will then immediately push authenticated users to the root)
+      router.push('/login');
+    };
 
-    handleAuthCallback()
-  }, [])
+    handleAuthCallback();
+  }, [router]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">
@@ -21,5 +26,5 @@ export default function AuthCallback() {
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
       </div>
     </div>
-  )
-} 
+  );
+}

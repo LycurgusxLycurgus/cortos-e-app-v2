@@ -6,54 +6,35 @@ const publicRoutes = ['/login', '/auth/callback'];
 
 export default function AuthGuard({ children }) {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [authenticated, setAuthenticated] = useState(false);
+  // "undefined" means the session is still being determined.
+  const [session, setSession] = useState(undefined);
 
-  // (1) Run an initial auth check once on mount.
+  // Get the current session on mount and subscribe to auth state changes.
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setAuthenticated(!!session);
-      } catch (error) {
-        console.error('Auth check error:', error);
-      } finally {
-        setLoading(false);
-      }
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
     };
+    getSession();
 
-    checkAuth();
-  }, []);
-
-  // (2) Listen for auth state changes once.
-  useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-        setAuthenticated(true);
-      } else if (event === 'SIGNED_OUT') {
-        setAuthenticated(false);
-      }
+      setSession(session);
     });
-    return () => {
-      subscription?.unsubscribe();
-    };
+    return () => subscription?.unsubscribe();
   }, []);
 
-  // (3) Once loading is done AND router is ready, handle redirection:
-  //     - If not authenticated and on a protected route, send to /login.
-  //     - If authenticated and on /login, push them to root.
+  // Redirect once the router is ready and session is determined.
   useEffect(() => {
-    if (!router.isReady) return; // Wait until the router is ready
-    if (!loading) {
-      if (!authenticated && !publicRoutes.includes(router.pathname)) {
-        router.push('/login');
-      } else if (authenticated && router.pathname === '/login') {
-        router.push('/');
-      }
+    if (!router.isReady || session === undefined) return;
+    if (!session && !publicRoutes.includes(router.pathname)) {
+      router.push('/login');
+    } else if (session && router.pathname === '/login') {
+      router.push('/');
     }
-  }, [router.isReady, loading, authenticated, router.pathname, router]);
+  }, [router.isReady, session, router.pathname, router]);
 
-  if (loading) {
+  // While determining session, show a spinner.
+  if (session === undefined) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
