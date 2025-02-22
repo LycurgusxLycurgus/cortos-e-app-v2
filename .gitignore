@@ -63,3 +63,7 @@ supabase/.env
 # Dependency lock files (optional, depending on your preference)
 package-lock.json
 yarn.lock
+
+# scripts0.2
+scripts0.2/
+

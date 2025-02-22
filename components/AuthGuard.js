@@ -27,8 +27,12 @@ export default function AuthGuard({ children }) {
 
   // (2) Listen for auth state changes once.
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setAuthenticated(!!session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        setAuthenticated(true);
+      } else if (event === 'SIGNED_OUT') {
+        setAuthenticated(false);
+      }
     });
     return () => {
       subscription?.unsubscribe();
@@ -60,4 +64,4 @@ export default function AuthGuard({ children }) {
   }
 
   return <>{children}</>;
-} 
+}
