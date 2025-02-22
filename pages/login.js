@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import Navbar from '../components/Navbar';
 
 const Login = () => {
@@ -93,6 +94,12 @@ const Login = () => {
                 {loading ? 'Signing in...' : 'Sign In'}
               </button>
             </form>
+            <p className="mt-4 text-center text-gray-400">
+              Don't have an account?{' '}
+              <Link href="/register" className="text-blue-400 hover:text-blue-300 underline">
+                Register here
+              </Link>
+            </p>
           </div>
         </div>
       </div>
