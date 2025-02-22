@@ -1,11 +1,19 @@
-import '../styles/globals.css'
-import { useEffect } from 'react'
-import { supabase } from '../utils/supabaseClient'
-import AuthGuard from '../components/AuthGuard'
+import '../styles/globals.css';
+import { useEffect } from 'react';
+import { supabase } from '../utils/supabaseClient';
+import AuthGuard from '../components/AuthGuard';
 
 function MyApp({ Component, pageProps }) {
   useEffect(() => {
-    // Handle initial session
+    // Force a session refresh on app mount
+    const refreshSession = async () => {
+      // Wait a bit before forcing session detection
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await supabase.auth.getSession(); // Trigger internal session detection
+    };
+    refreshSession();
+
+    // Handle initial user profile sync
     const initializeUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
@@ -15,11 +23,13 @@ function MyApp({ Component, pageProps }) {
     initializeUser();
 
     // Listen for sign-in events
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        await createOrUpdateProfile(session.user);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (session?.user) {
+          await createOrUpdateProfile(session.user);
+        }
       }
-    });
+    );
 
     return () => {
       subscription?.unsubscribe();
@@ -28,28 +38,28 @@ function MyApp({ Component, pageProps }) {
 
   const createOrUpdateProfile = async (user) => {
     try {
-      // First try to get the existing profile
       const { data: existingProfile, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
 
-      if (fetchError && fetchError.code === 'PGRST116') { // No profile exists
-        // Use upsert instead of insert to handle race conditions
+      if (fetchError && fetchError.code === 'PGRST116') {
         const { error: upsertError } = await supabase
           .from('profiles')
-          .upsert({
-            id: user.id,
-            username: user.email?.split('@')[0] || 'user',
-            avatar_url: null,
-            bio: null,
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'id',
-            ignoreDuplicates: true
-          });
-
+          .upsert(
+            {
+              id: user.id,
+              username: user.email?.split('@')[0] || 'user',
+              avatar_url: null,
+              bio: null,
+              updated_at: new Date().toISOString(),
+            },
+            {
+              onConflict: 'id',
+              ignoreDuplicates: true,
+            }
+          );
         if (upsertError) {
           console.error('Error upserting profile:', upsertError);
         }
@@ -65,7 +75,7 @@ function MyApp({ Component, pageProps }) {
     <AuthGuard>
       <Component {...pageProps} />
     </AuthGuard>
-  )
+  );
 }
 
 export default MyApp;

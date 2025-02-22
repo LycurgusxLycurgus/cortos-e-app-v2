@@ -7,20 +7,29 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      // Clear the URL hash to prevent stale auth attempts
-      window.history.replaceState(null, '', window.location.pathname);
-      
-      // Get the session (it will be auto-detected from the URL thanks to detectSessionInUrl: true)
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error || !session) {
-        console.error('Error retrieving session:', error);
-        router.push('/login');
-        return;
+      // Check if the URL contains a "code" parameter (PKCE flow)
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          console.error('Error exchanging code for session:', error);
+        }
       }
 
-      // Redirect to home if session is present, otherwise back to login
-      router.push('/');
+      // Clear URL hash or search params
+      window.history.replaceState(null, '', window.location.pathname);
+
+      // Allow a brief delay for session to be established
+      setTimeout(async () => {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error || !session) {
+          console.error('Error retrieving session:', error);
+          router.push('/login');
+          return;
+        }
+        router.push('/');
+      }, 100); // 100ms delay may help
     };
 
     handleAuthCallback();
