@@ -1,38 +1,34 @@
 import '../styles/globals.css';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import AuthGuard from '../components/AuthGuard';
-import { ErrorBoundary } from 'react-error-boundary';
-
-function ErrorFallback({ error, resetErrorBoundary }) {
-  return (
-    <div role="alert" className="flex flex-col items-center justify-center min-h-screen">
-      <p className="text-red-500">Something went wrong:</p>
-      <pre className="text-white">{error.message}</pre>
-      <button
-        onClick={resetErrorBoundary}
-        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
-      >
-        Try again
-      </button>
-    </div>
-  );
-}
 
 function MyApp({ Component, pageProps }) {
+  const [error, setError] = useState(null);
+
   useEffect(() => {
     // Force a session refresh on app mount
     const refreshSession = async () => {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      await supabase.auth.getSession(); // Trigger internal session detection
+      try {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await supabase.auth.getSession(); // Trigger internal session detection
+      } catch (error) {
+        console.error('Session refresh error:', error);
+        setError(error);
+      }
     };
     refreshSession();
 
     // Handle initial user profile sync
     const initializeUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        await createOrUpdateProfile(session.user);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          await createOrUpdateProfile(session.user);
+        }
+      } catch (error) {
+        console.error('User init error:', error);
+        setError(error);
       }
     };
     initializeUser();
@@ -40,8 +36,13 @@ function MyApp({ Component, pageProps }) {
     // Listen for sign-in events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        if (session?.user) {
-          await createOrUpdateProfile(session.user);
+        try {
+          if (session?.user) {
+            await createOrUpdateProfile(session.user);
+          }
+        } catch (error) {
+          console.error('Auth state change error:', error);
+          setError(error);
         }
       }
     );
@@ -75,26 +76,35 @@ function MyApp({ Component, pageProps }) {
               ignoreDuplicates: true,
             }
           );
-        if (upsertError) {
-          console.error('Error upserting profile:', upsertError);
-        }
+        if (upsertError) throw upsertError;
       } else if (fetchError) {
-        console.error('Error fetching profile:', fetchError);
+        throw fetchError;
       }
     } catch (error) {
       console.error('Error in createOrUpdateProfile:', error);
+      setError(error);
     }
   };
 
+  if (error) {
+    return (
+      <div role="alert" className="flex flex-col items-center justify-center min-h-screen">
+        <p className="text-red-500">Something went wrong:</p>
+        <pre className="text-white">{error.message}</pre>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <ErrorBoundary
-      FallbackComponent={ErrorFallback}
-      onReset={() => window.location.reload()}
-    >
-      <AuthGuard>
-        <Component {...pageProps} />
-      </AuthGuard>
-    </ErrorBoundary>
+    <AuthGuard>
+      <Component {...pageProps} />
+    </AuthGuard>
   );
 }
 
