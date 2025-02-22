@@ -11,7 +11,10 @@
       "next": "^13.4.19",
       "react": "^18.2.0",
       "react-dom": "^18.2.0",
-      "@supabase/supabase-js": "^2.0.0"
+      "@supabase/supabase-js": "^2.0.0",
+      "@next/swc-win32-x64-msvc": "latest",
+      "@next/swc-darwin-x64": "latest",
+      "@next/swc-linux-x64-gnu": "latest"
     },
     "devDependencies": {
       "tailwindcss": "^3.3.3",

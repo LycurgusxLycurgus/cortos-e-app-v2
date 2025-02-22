@@ -69,6 +69,8 @@ const Login = () => {
                   </label>
                   <input
                     type="email"
+                    id="email"
+                    name="email"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     className="newspaper-input border"

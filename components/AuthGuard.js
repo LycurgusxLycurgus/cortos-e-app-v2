@@ -35,10 +35,11 @@ export default function AuthGuard({ children }) {
     };
   }, []);
 
-  // (3) Once loading is done, handle redirection:
+  // (3) Once loading is done AND router is ready, handle redirection:
   //     - If not authenticated and on a protected route, send to /login.
   //     - If authenticated and on /login, push them to root.
   useEffect(() => {
+    if (!router.isReady) return; // Wait until the router is ready
     if (!loading) {
       if (!authenticated && !publicRoutes.includes(router.pathname)) {
         router.push('/login');
@@ -46,7 +47,7 @@ export default function AuthGuard({ children }) {
         router.push('/');
       }
     }
-  }, [loading, authenticated, router.pathname, router]);
+  }, [router.isReady, loading, authenticated, router.pathname, router]);
 
   if (loading) {
     return (
