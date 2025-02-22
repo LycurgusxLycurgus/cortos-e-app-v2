@@ -25,34 +25,41 @@ export default function AuthGuard({ children }) {
     checkAuth();
   }, []);
 
-  // Auth state listener
+  // Listen for auth state changes with specific event handling
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
         setAuthenticated(true);
+        // If on login page, redirect to home
+        if (router.pathname === '/login') {
+          router.push('/');
+        }
       } else if (event === 'SIGNED_OUT') {
         setAuthenticated(false);
+        // If not on a public route, redirect to login
+        if (!publicRoutes.includes(router.pathname)) {
+          router.push('/login');
+        }
       }
     });
-
     return () => {
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [router]);
 
-  // Handle redirects
+  // Handle redirects after router and auth are ready
   useEffect(() => {
-    if (!router.isReady) return;
-    if (!loading) {
-      if (!authenticated && !publicRoutes.includes(router.pathname)) {
-        router.push('/login');
-      } else if (authenticated && router.pathname === '/login') {
-        router.push('/');
-      }
+    if (!router.isReady || loading) return;
+    
+    if (!authenticated && !publicRoutes.includes(router.pathname)) {
+      router.push('/login');
+    } else if (authenticated && router.pathname === '/login') {
+      router.push('/');
     }
   }, [router.isReady, loading, authenticated, router.pathname]);
 
-  if (loading) {
+  // Show loading state while determining auth
+  if (loading || !router.isReady) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
