@@ -9,7 +9,6 @@ const Navbar = () => {
   const router = useRouter();
 
   useEffect(() => {
-    // Get initial session
     const getInitialSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -22,7 +21,6 @@ const Navbar = () => {
     };
     getInitialSession();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -41,19 +39,21 @@ const Navbar = () => {
     }
   };
 
-  // Don't show navbar on login page
-  if (router.pathname === '/login') return null;
+  // Hide navbar on auth pages (login and register)
+  if (router.pathname === '/login' || router.pathname === '/register') return null;
 
   if (loading) {
-    return <nav className="border-b-2 border-gray-700 bg-gray-900">
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="flex justify-between items-center">
-          <Link href="/" className="text-3xl font-serif font-bold tracking-tight text-gray-100">
-            The Daily Discussion
-          </Link>
+    return (
+      <nav className="border-b-2 border-gray-700 bg-gray-900">
+        <div className="max-w-6xl mx-auto px-4 py-6">
+          <div className="flex justify-between items-center">
+            <Link href="/" className="text-3xl font-serif font-bold tracking-tight text-gray-100">
+              The Daily Discussion
+            </Link>
+          </div>
         </div>
-      </div>
-    </nav>;
+      </nav>
+    );
   }
 
   return (

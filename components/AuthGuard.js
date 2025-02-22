@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase, getValidSession } from '../utils/supabaseClient';
 
-// Remove '/auth/callback' since we no longer use magic links.
-const publicRoutes = ['/login'];
+// Updated publicRoutes: include '/login' and '/register'
+const publicRoutes = ['/login', '/register'];
 
 export default function AuthGuard({ children }) {
   const router = useRouter();
@@ -15,7 +15,6 @@ export default function AuthGuard({ children }) {
 
     const initializeAuth = async () => {
       try {
-        // Try to get a valid session
         const currentSession = await getValidSession();
         if (mounted) {
           setSession(currentSession);
@@ -56,7 +55,6 @@ export default function AuthGuard({ children }) {
     const handleNavigation = async () => {
       try {
         setIsNavigating(true);
-        // Add delay to prevent rapid navigation
         await new Promise(resolve => setTimeout(resolve, 100));
 
         if (!session && !publicRoutes.includes(router.pathname)) {
@@ -74,7 +72,6 @@ export default function AuthGuard({ children }) {
     handleNavigation();
   }, [router.isReady, session, router.pathname]);
 
-  // Only show loading while determining initial session
   if (session === undefined) {
     return (
       <div className="flex items-center justify-center min-h-screen">
