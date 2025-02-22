@@ -1,9 +1,7 @@
-import { createBrowserClient } from '@supabase/ssr';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
+// This client should only be used in client components
+export const supabase = createClientComponentClient();
 
 // Enhanced session validation with timeout
 export const getValidSession = async () => {
