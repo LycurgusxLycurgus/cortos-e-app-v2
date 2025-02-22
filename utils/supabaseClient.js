@@ -60,29 +60,36 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 export const getValidSession = async () => {
+  // Timeout promise: rejects after 3 seconds if session retrieval stalls
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("Session retrieval timed out")), 3000)
+  );
   try {
-    // Use lock to prevent concurrent refresh attempts
-    if (sessionRefreshInProgress) {
-      await new Promise(resolve => setTimeout(resolve, 150));
-    }
-    sessionRefreshInProgress = true;
-    
-    const storedSession = enhancedStorage.getItem('sb-session');
-    if (!storedSession) {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) throw error;
+    const sessionPromise = (async () => {
+      if (sessionRefreshInProgress) {
+        // Wait a bit if another refresh is in progress
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+      sessionRefreshInProgress = true;
+      const storedSession = enhancedStorage.getItem('sb-session');
+      if (!storedSession) {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        sessionRefreshInProgress = false;
+        return session;
+      }
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        sessionRefreshInProgress = false;
+        return session;
+      }
       sessionRefreshInProgress = false;
-      return session;
-    }
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      sessionRefreshInProgress = false;
-      return session;
-    }
-    sessionRefreshInProgress = false;
-    return JSON.parse(storedSession);
+      return JSON.parse(storedSession);
+    })();
+
+    return await Promise.race([sessionPromise, timeout]);
   } catch (error) {
     console.error('Session validation error:', error);
     sessionRefreshInProgress = false;
