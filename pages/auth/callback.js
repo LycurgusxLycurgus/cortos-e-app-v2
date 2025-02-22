@@ -7,32 +7,20 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      try {
-        // First exchange the code for a session
-        await supabase.auth.exchangeCodeForSession(window.location.hash);
-        
-        // Clear the URL hash to prevent stale auth attempts
-        window.history.replaceState(null, '', window.location.pathname);
-        
-        // Then get the session
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error retrieving session:', error);
-          router.push('/login');
-          return;
-        }
-
-        // If we have a session, go to home, otherwise to login
-        if (session) {
-          router.push('/');
-        } else {
-          router.push('/login');
-        }
-      } catch (error) {
-        console.error('Auth callback error:', error);
+      // Clear the URL hash to prevent stale auth attempts
+      window.history.replaceState(null, '', window.location.pathname);
+      
+      // Get the session (it will be auto-detected from the URL thanks to detectSessionInUrl: true)
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error || !session) {
+        console.error('Error retrieving session:', error);
         router.push('/login');
+        return;
       }
+
+      // Redirect to home if session is present, otherwise back to login
+      router.push('/');
     };
 
     handleAuthCallback();

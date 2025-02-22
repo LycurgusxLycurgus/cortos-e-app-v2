@@ -33,7 +33,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: true, // <-- Changed from false to true
     storage: safeStorage
   }
 });
@@ -50,7 +50,7 @@ export const getValidSession = async () => {
   }
 };
 
-// Add a helper to check if the current page is a public route
+// Helper to check if the current page is a public route
 export const isPublicRoute = (pathname) => {
   const publicRoutes = ['/login', '/auth/callback'];
   return publicRoutes.includes(pathname);
