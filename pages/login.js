@@ -5,34 +5,32 @@ import Navbar from '../components/Navbar';
 
 const Login = () => {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState(''); // new state for password
   const [loading, setLoading] = useState(true);
-  const [linkSent, setLinkSent] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     setLoading(false);
   }, []);
 
-  const handleSendMagicLink = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      // Use password-based sign in instead of magic link
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        options: {
-          shouldCreateUser: true,
-          emailRedirectTo: `${window.location.origin}/auth/callback`
-        }
+        password
       });
 
       if (error) {
         alert(error.message);
       } else {
-        setLinkSent(true);
+        router.push('/');
       }
     } catch (error) {
-      alert('Error sending magic link: ' + error.message);
+      alert('Error signing in: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -55,55 +53,47 @@ const Login = () => {
           <header className="text-center mb-6 md:mb-8">
             <h1 className="newspaper-headline mb-3 md:mb-4">The Topics Discussion</h1>
             <p className="font-serif text-sm md:text-base text-gray-400">
-              Join our community of thoughtful discussions
+              Sign in with your email and password
             </p>
           </header>
 
-          {!linkSent ? (
-            <div className="bg-gray-800 border border-gray-700 p-4 md:p-8">
-              <h2 className="newspaper-subheading mb-4 md:mb-6">Sign In to Participate</h2>
-              <form onSubmit={handleSendMagicLink}>
-                <div className="mb-4">
-                  <label className="block font-serif text-base md:text-lg mb-2 text-gray-200">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    className="newspaper-input border"
-                    placeholder="Enter your email"
-                    required
-                  />
-                </div>
-                <button 
-                  type="submit" 
-                  className="newspaper-button w-full mt-2"
-                  disabled={loading}
-                >
-                  {loading ? 'Sending...' : 'Send Magic Link'}
-                </button>
-              </form>
-            </div>
-          ) : (
-            <div className="bg-gray-800 border border-gray-700 p-4 md:p-8 text-center">
-              <h2 className="newspaper-subheading mb-3 md:mb-4">Check Your Inbox</h2>
-              <p className="font-serif text-sm md:text-base text-gray-300 mb-4 md:mb-6">
-                We've sent a magic link to <strong className="text-gray-100">{email}</strong>
-              </p>
-              <p className="font-serif text-sm md:text-base text-gray-300 mb-4 md:mb-6">
-                Click the link in the email to sign in to your account.
-              </p>
-              <button
-                onClick={() => setLinkSent(false)}
-                className="text-gray-400 underline hover:text-gray-200 text-sm md:text-base"
-              >
-                Use a different email
+          <div className="bg-gray-800 border border-gray-700 p-4 md:p-8">
+            <form onSubmit={handleLogin}>
+              <div className="mb-4">
+                <label className="block font-serif text-base md:text-lg mb-2 text-gray-200">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="newspaper-input border"
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block font-serif text-base md:text-lg mb-2 text-gray-200">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="newspaper-input border"
+                  placeholder="Enter your password"
+                  required
+                />
+              </div>
+              <button type="submit" className="newspaper-button w-full mt-2" disabled={loading}>
+                {loading ? 'Signing in...' : 'Sign In'}
               </button>
-            </div>
-          )}
+            </form>
+          </div>
         </div>
       </div>
     </div>

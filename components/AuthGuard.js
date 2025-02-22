@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase, getValidSession } from '../utils/supabaseClient';
 
-const publicRoutes = ['/login', '/auth/callback'];
+// Remove '/auth/callback' since we no longer use magic links.
+const publicRoutes = ['/login'];
 
 export default function AuthGuard({ children }) {
   const router = useRouter();
@@ -16,7 +17,6 @@ export default function AuthGuard({ children }) {
       try {
         // Try to get a valid session
         const currentSession = await getValidSession();
-        
         if (mounted) {
           setSession(currentSession);
         }
@@ -30,18 +30,19 @@ export default function AuthGuard({ children }) {
 
     initializeAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state change:', event, !!session);
-      
-      if (mounted) {
-        if (event === 'SIGNED_OUT') {
-          setSession(null);
-        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          const validSession = await getValidSession();
-          setSession(validSession);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state change:', event, !!session);
+        if (mounted) {
+          if (event === 'SIGNED_OUT') {
+            setSession(null);
+          } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            const validSession = await getValidSession();
+            setSession(validSession);
+          }
         }
       }
-    });
+    );
 
     return () => {
       mounted = false;
@@ -55,7 +56,6 @@ export default function AuthGuard({ children }) {
     const handleNavigation = async () => {
       try {
         setIsNavigating(true);
-        
         // Add delay to prevent rapid navigation
         await new Promise(resolve => setTimeout(resolve, 100));
 
