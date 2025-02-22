@@ -7,13 +7,9 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const enhancedStorage = {
   getItem: (key) => {
     try {
-      // Try localStorage first
       const localValue = localStorage.getItem(key);
       if (localValue) return localValue;
-
-      // Try sessionStorage as fallback
-      const sessionValue = sessionStorage.getItem(key);
-      return sessionValue;
+      return sessionStorage.getItem(key);
     } catch (error) {
       console.error('Storage access error:', error);
       return null;
@@ -21,12 +17,10 @@ const enhancedStorage = {
   },
   setItem: (key, value) => {
     try {
-      // Try to store in both storages
       localStorage.setItem(key, value);
       sessionStorage.setItem(key, value);
     } catch (error) {
       console.error('Storage write error:', error);
-      // Try sessionStorage as fallback
       try {
         sessionStorage.setItem(key, value);
       } catch (e) {
@@ -43,6 +37,9 @@ const enhancedStorage = {
     }
   }
 };
+
+// Use a simple in-memory lock to avoid concurrent refreshes
+let sessionRefreshInProgress = false;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -62,36 +59,37 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// More reliable session validation
 export const getValidSession = async () => {
   try {
-    // First try getting from storage
-    const storedSession = enhancedStorage.getItem('sb-session');
+    // Use lock to prevent concurrent refresh attempts
+    if (sessionRefreshInProgress) {
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    sessionRefreshInProgress = true;
     
-    // If no stored session, get fresh session
+    const storedSession = enhancedStorage.getItem('sb-session');
     if (!storedSession) {
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error) throw error;
+      sessionRefreshInProgress = false;
       return session;
     }
-
-    // If stored session exists, verify it
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      // Invalid session, try refreshing
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error) throw error;
+      sessionRefreshInProgress = false;
       return session;
     }
-
+    sessionRefreshInProgress = false;
     return JSON.parse(storedSession);
   } catch (error) {
     console.error('Session validation error:', error);
+    sessionRefreshInProgress = false;
     return null;
   }
 };
 
-// Helper to check routes
 export const isPublicRoute = (pathname) => {
   const publicRoutes = ['/login', '/register', '/auth/callback'];
   return publicRoutes.includes(pathname);

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase, getValidSession } from '../utils/supabaseClient';
 
-// Updated publicRoutes: include '/login' and '/register'
 const publicRoutes = ['/login', '/register'];
 
 export default function AuthGuard({ children }) {
@@ -64,7 +63,7 @@ export default function AuthGuard({ children }) {
     const handleNavigation = async () => {
       try {
         setIsNavigating(true);
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 150)); // slightly longer delay
 
         if (!session && !publicRoutes.includes(router.pathname)) {
           await router.replace('/login');
