@@ -2,42 +2,59 @@ import '../styles/globals.css';
 import { useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import AuthGuard from '../components/AuthGuard';
+import { useRouter } from 'next/router';
 
 function MyApp({ Component, pageProps }) {
+  const [isInitializing, setIsInitializing] = useState(true);
   const [error, setError] = useState(null);
+  const router = useRouter();
 
   useEffect(() => {
-    // Force a session refresh on app mount
-    const refreshSession = async () => {
-      try {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        await supabase.auth.getSession(); // Trigger internal session detection
-      } catch (error) {
-        console.error('Session refresh error:', error);
-        setError(error);
-      }
-    };
-    refreshSession();
+    let mounted = true;
 
-    // Handle initial user profile sync
-    const initializeUser = async () => {
+    const initializeAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // First check if we have a session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) throw sessionError;
+
+        if (!session) {
+          // No session, redirect to login if not on a public route
+          if (!isPublicRoute(router.pathname)) {
+            router.push('/login');
+          }
+        }
+
+        // Initialize user profile if we have a session
         if (session?.user) {
           await createOrUpdateProfile(session.user);
         }
+
       } catch (error) {
-        console.error('User init error:', error);
-        setError(error);
+        console.error('Auth initialization error:', error);
+        // On error, redirect to login
+        if (!isPublicRoute(router.pathname)) {
+          router.push('/login');
+        }
+      } finally {
+        if (mounted) {
+          setIsInitializing(false);
+        }
       }
     };
-    initializeUser();
 
-    // Listen for sign-in events
+    initializeAuth();
+
+    // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        if (!mounted) return;
+
         try {
-          if (session?.user) {
+          if (event === 'SIGNED_OUT') {
+            router.push('/login');
+          } else if (session?.user) {
             await createOrUpdateProfile(session.user);
           }
         } catch (error) {
@@ -48,9 +65,10 @@ function MyApp({ Component, pageProps }) {
     );
 
     return () => {
+      mounted = false;
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [router]);
 
   const createOrUpdateProfile = async (user) => {
     try {
@@ -85,6 +103,18 @@ function MyApp({ Component, pageProps }) {
       setError(error);
     }
   };
+
+  // Show loading state
+  if (isInitializing) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4">Initializing...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
