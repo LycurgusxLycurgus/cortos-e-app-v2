@@ -8,22 +8,26 @@ export default function AuthGuard({ children }) {
   const router = useRouter();
   const [session, setSession] = useState(undefined);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [recoveryAttempts, setRecoveryAttempts] = useState(0);
 
   useEffect(() => {
     let mounted = true;
 
     const initializeAuth = async () => {
       try {
-        // Try to get a valid session
         const currentSession = await getValidSession();
         
         if (mounted) {
           setSession(currentSession);
+          // Reset recovery attempts on successful session fetch
+          setRecoveryAttempts(0);
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
         if (mounted) {
           setSession(null);
+          // Increment recovery attempts on failure
+          setRecoveryAttempts(prev => prev + 1);
         }
       }
     };
@@ -39,6 +43,8 @@ export default function AuthGuard({ children }) {
         } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           const validSession = await getValidSession();
           setSession(validSession);
+          // Reset recovery attempts on successful auth state change
+          setRecoveryAttempts(0);
         }
       }
     });
@@ -48,6 +54,16 @@ export default function AuthGuard({ children }) {
       subscription?.unsubscribe();
     };
   }, []);
+
+  // Add recovery effect
+  useEffect(() => {
+    if (recoveryAttempts > 0 && recoveryAttempts < 3 && !session) {
+      const timer = setTimeout(() => {
+        router.push('/login');
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [recoveryAttempts, session]);
 
   useEffect(() => {
     if (!router.isReady || session === undefined || isNavigating) return;
