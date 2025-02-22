@@ -1,3 +1,4 @@
+// Filename: ./components/AuthGuard.js
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase, getValidSession } from '../utils/supabaseClient';
@@ -58,9 +59,10 @@ export default function AuthGuard({ children }) {
         await new Promise(resolve => setTimeout(resolve, 100));
 
         if (!session && !publicRoutes.includes(router.pathname)) {
-          await router.push('/login');
+          // Replace instead of push to avoid stacking history entries
+          await router.replace('/login');
         } else if (session && router.pathname === '/login') {
-          await router.push('/');
+          await router.replace('/');
         }
       } catch (error) {
         console.error('Navigation error:', error);
