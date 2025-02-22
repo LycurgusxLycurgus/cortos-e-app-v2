@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { supabase, getValidSession } from '../utils/supabaseClient';
-
-const publicRoutes = ['/login', '/register'];
+import { supabase, getValidSession, isPublicRoute } from '../utils/supabaseClient';
 
 export default function AuthGuard({ children }) {
   const router = useRouter();
@@ -12,19 +10,29 @@ export default function AuthGuard({ children }) {
 
   useEffect(() => {
     let mounted = true;
+    let retryCount = 0;
+    const maxRetries = 2;
 
     const initializeAuth = async () => {
       try {
         const currentSession = await getValidSession();
         if (mounted) {
           setSession(currentSession);
-          setAuthError(null);
+          // Reset retry count on success
+          retryCount = 0;
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
-        if (mounted) {
-          setAuthError(error);
+        if (mounted && retryCount < maxRetries) {
+          // Retry with exponential backoff
+          setTimeout(initializeAuth, Math.pow(2, retryCount) * 1000);
+          retryCount++;
+        } else if (mounted) {
+          // Max retries reached, force logout
           setSession(null);
+          if (!isPublicRoute(router.pathname)) {
+            router.push('/login');
+          }
         }
       }
     };
@@ -33,20 +41,13 @@ export default function AuthGuard({ children }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        try {
-          console.log('Auth state change:', event, !!session);
-          if (mounted) {
-            if (event === 'SIGNED_OUT') {
-              setSession(null);
-            } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-              const validSession = await getValidSession();
-              setSession(validSession);
-              setAuthError(null);
-            }
+        if (mounted) {
+          if (event === 'SIGNED_OUT') {
+            setSession(null);
+          } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            const validSession = await getValidSession();
+            setSession(validSession);
           }
-        } catch (error) {
-          console.error('Error in auth state change handler:', error);
-          setAuthError(error);
         }
       }
     );
@@ -55,7 +56,7 @@ export default function AuthGuard({ children }) {
       mounted = false;
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (!router.isReady || session === undefined || isNavigating) return;
@@ -65,7 +66,7 @@ export default function AuthGuard({ children }) {
         setIsNavigating(true);
         await new Promise(resolve => setTimeout(resolve, 150)); // slightly longer delay
 
-        if (!session && !publicRoutes.includes(router.pathname)) {
+        if (!session && !isPublicRoute(router.pathname)) {
           await router.replace('/login');
         } else if (session && router.pathname === '/login') {
           await router.replace('/');
