@@ -60,40 +60,50 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 export const getValidSession = async () => {
-  // Timeout promise: rejects after 3 seconds if session retrieval stalls
+  // Timeout promise: rejects after 7000ms if session retrieval stalls
   const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error("Session retrieval timed out")), 3000)
+    setTimeout(() => reject(new Error("Session retrieval timed out")), 7000)
   );
-  try {
-    const sessionPromise = (async () => {
-      if (sessionRefreshInProgress) {
-        // Wait a bit if another refresh is in progress
-        await new Promise(resolve => setTimeout(resolve, 150));
-      }
-      sessionRefreshInProgress = true;
-      const storedSession = enhancedStorage.getItem('sb-session');
-      if (!storedSession) {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        sessionRefreshInProgress = false;
-        return session;
-      }
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        sessionRefreshInProgress = false;
-        return session;
-      }
+  
+  const retrieveSession = async () => {
+    if (sessionRefreshInProgress) {
+      // Wait a bit if another refresh is in progress
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    sessionRefreshInProgress = true;
+    const storedSession = enhancedStorage.getItem('sb-session');
+    if (!storedSession) {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) throw error;
       sessionRefreshInProgress = false;
-      return JSON.parse(storedSession);
-    })();
+      return session;
+    }
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      sessionRefreshInProgress = false;
+      return session;
+    }
+    sessionRefreshInProgress = false;
+    return JSON.parse(storedSession);
+  };
 
-    return await Promise.race([sessionPromise, timeout]);
+  try {
+    // Try retrieving the session with a timeout.
+    return await Promise.race([retrieveSession(), timeout]);
   } catch (error) {
     console.error('Session validation error:', error);
-    sessionRefreshInProgress = false;
-    return null;
+    // If timeout occurred, attempt a retry without a timeout.
+    console.warn('Retrying session retrieval without timeout...');
+    try {
+      const { data: { session }, error: retryError } = await supabase.auth.getSession();
+      if (retryError) throw retryError;
+      return session;
+    } catch (retryErr) {
+      console.error('Retry session retrieval error:', retryErr);
+      return null;
+    }
   }
 };
 
