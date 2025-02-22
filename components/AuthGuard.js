@@ -6,35 +6,53 @@ const publicRoutes = ['/login', '/auth/callback'];
 
 export default function AuthGuard({ children }) {
   const router = useRouter();
-  // "undefined" means the session is still being determined.
-  const [session, setSession] = useState(undefined);
+  const [loading, setLoading] = useState(true);
+  const [authenticated, setAuthenticated] = useState(false);
 
-  // Get the current session on mount and subscribe to auth state changes.
+  // Initial auth check
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setAuthenticated(!!session);
+      } catch (error) {
+        console.error('Auth check error:', error);
+      } finally {
+        setLoading(false);
+      }
     };
-    getSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-    });
-    return () => subscription?.unsubscribe();
+    checkAuth();
   }, []);
 
-  // Redirect once the router is ready and session is determined.
+  // Auth state listener
   useEffect(() => {
-    if (!router.isReady || session === undefined) return;
-    if (!session && !publicRoutes.includes(router.pathname)) {
-      router.push('/login');
-    } else if (session && router.pathname === '/login') {
-      router.push('/');
-    }
-  }, [router.isReady, session, router.pathname, router]);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        setAuthenticated(true);
+      } else if (event === 'SIGNED_OUT') {
+        setAuthenticated(false);
+      }
+    });
 
-  // While determining session, show a spinner.
-  if (session === undefined) {
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+  // Handle redirects
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (!loading) {
+      if (!authenticated && !publicRoutes.includes(router.pathname)) {
+        router.push('/login');
+      } else if (authenticated && router.pathname === '/login') {
+        router.push('/');
+      }
+    }
+  }, [router.isReady, loading, authenticated, router.pathname]);
+
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
