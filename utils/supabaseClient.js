@@ -1,110 +1,20 @@
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/auth-helpers-nextjs';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// Enhanced storage with fallback mechanisms
-const enhancedStorage = {
-  getItem: (key) => {
-    try {
-      const localValue = localStorage.getItem(key);
-      if (localValue) return localValue;
-      return sessionStorage.getItem(key);
-    } catch (error) {
-      console.error('Storage access error:', error);
-      return null;
-    }
-  },
-  setItem: (key, value) => {
-    try {
-      localStorage.setItem(key, value);
-      sessionStorage.setItem(key, value);
-    } catch (error) {
-      console.error('Storage write error:', error);
-      try {
-        sessionStorage.setItem(key, value);
-      } catch (e) {
-        console.error('All storage failed:', e);
-      }
-    }
-  },
-  removeItem: (key) => {
-    try {
-      localStorage.removeItem(key);
-      sessionStorage.removeItem(key);
-    } catch (error) {
-      console.error('Storage removal error:', error);
-    }
-  }
-};
-
-// Use a simple in-memory lock to avoid concurrent refreshes
-let sessionRefreshInProgress = false;
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: false,
-    storage: enhancedStorage,
-    storageKey: 'sb-session',
-    flowType: 'pkce',
-    debug: process.env.NODE_ENV === 'development',
-    retryAttempts: 3,
-    cookieOptions: {
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/'
-    }
+    // When using SSR, this enables detection of the session in the URL and uses cookies
+    detectSessionInUrl: true,
+    flowType: 'pkce'
   }
 });
 
+// Simplify getValidSession – now it simply returns the current session.
 export const getValidSession = async () => {
-  // Timeout promise: rejects after 7000ms if session retrieval stalls
-  const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error("Session retrieval timed out")), 7000)
-  );
-  
-  const retrieveSession = async () => {
-    if (sessionRefreshInProgress) {
-      // Wait a bit if another refresh is in progress
-      await new Promise(resolve => setTimeout(resolve, 150));
-    }
-    sessionRefreshInProgress = true;
-    const storedSession = enhancedStorage.getItem('sb-session');
-    if (!storedSession) {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      sessionRefreshInProgress = false;
-      return session;
-    }
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      sessionRefreshInProgress = false;
-      return session;
-    }
-    sessionRefreshInProgress = false;
-    return JSON.parse(storedSession);
-  };
-
-  try {
-    // Try retrieving the session with a timeout.
-    return await Promise.race([retrieveSession(), timeout]);
-  } catch (error) {
-    console.error('Session validation error:', error);
-    // If timeout occurred, attempt a retry without a timeout.
-    console.warn('Retrying session retrieval without timeout...');
-    try {
-      const { data: { session }, error: retryError } = await supabase.auth.getSession();
-      if (retryError) throw retryError;
-      return session;
-    } catch (retryErr) {
-      console.error('Retry session retrieval error:', retryErr);
-      return null;
-    }
-  }
+  const { data: { session } } = await supabase.auth.getSession();
+  return session;
 };
 
 export const isPublicRoute = (pathname) => {
