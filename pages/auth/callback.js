@@ -10,6 +10,10 @@ export default function AuthCallback() {
       try {
         // First exchange the code for a session
         await supabase.auth.exchangeCodeForSession(window.location.hash);
+        
+        // Clear the URL hash to prevent stale auth attempts
+        window.history.replaceState(null, '', window.location.pathname);
+        
         // Then get the session
         const { data: { session }, error } = await supabase.auth.getSession();
         
