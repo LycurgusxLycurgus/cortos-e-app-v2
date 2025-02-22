@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../utils/supabaseClient';
+import { supabase, getValidSession } from '../utils/supabaseClient';
 
 const publicRoutes = ['/login', '/auth/callback'];
 
@@ -10,23 +10,43 @@ export default function AuthGuard({ children }) {
   const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
-    const getSession = async () => {
+    let mounted = true;
+
+    const initializeAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
+        // Try to get a valid session
+        const currentSession = await getValidSession();
+        
+        if (mounted) {
+          setSession(currentSession);
+        }
       } catch (error) {
-        console.error('Session fetch error:', error);
-        setSession(null);
+        console.error('Auth initialization error:', error);
+        if (mounted) {
+          setSession(null);
+        }
       }
     };
-    getSession();
+
+    initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state change:', event);
-      setSession(session);
+      console.log('Auth state change:', event, !!session);
+      
+      if (mounted) {
+        if (event === 'SIGNED_OUT') {
+          setSession(null);
+        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          const validSession = await getValidSession();
+          setSession(validSession);
+        }
+      }
     });
 
-    return () => subscription?.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription?.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -35,6 +55,10 @@ export default function AuthGuard({ children }) {
     const handleNavigation = async () => {
       try {
         setIsNavigating(true);
+        
+        // Add delay to prevent rapid navigation
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         if (!session && !publicRoutes.includes(router.pathname)) {
           await router.push('/login');
         } else if (session && router.pathname === '/login') {
@@ -50,6 +74,7 @@ export default function AuthGuard({ children }) {
     handleNavigation();
   }, [router.isReady, session, router.pathname]);
 
+  // Only show loading while determining initial session
   if (session === undefined) {
     return (
       <div className="flex items-center justify-center min-h-screen">
