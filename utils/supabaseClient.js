@@ -3,28 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// Enhanced storage with session recovery
-const enhancedStorage = {
+// Simple storage wrapper with error handling
+const safeStorage = {
   getItem: (key) => {
     try {
-      const item = localStorage.getItem(key);
-      if (!item) return null;
-
-      // Parse the stored session
-      const parsed = JSON.parse(item);
-      
-      // If it's not the session item, return as is
-      if (!key.includes('supabase.auth.token')) {
-        return item;
-      }
-
-      // Check if session exists and is not expired
-      if (parsed?.expires_at && parsed.expires_at < Date.now() / 1000) {
-        localStorage.removeItem(key);
-        return null;
-      }
-
-      return item;
+      return localStorage.getItem(key);
     } catch (error) {
       console.error('Storage getItem error:', error);
       return null;
@@ -51,42 +34,18 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: false,
-    storage: enhancedStorage,
-    storageKey: 'supabase.auth.token',
-    flowType: 'pkce'
+    storage: safeStorage
   }
 });
 
-// Enhanced session validation
+// Simplified session validation that doesn't aggressively clear sessions
 export const getValidSession = async () => {
   try {
-    // First check if we have a session in storage
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError) throw sessionError;
-    
-    if (!session) {
-      return null;
-    }
-
-    // Verify the session is still valid
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
-      // Session is invalid, clean up
-      await supabase.auth.signOut();
-      return null;
-    }
-
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) throw error;
     return session;
   } catch (error) {
     console.error('Session validation error:', error);
-    // On error, clean up and return null
-    try {
-      await supabase.auth.signOut();
-    } catch (e) {
-      console.error('Cleanup error:', e);
-    }
     return null;
   }
 };
