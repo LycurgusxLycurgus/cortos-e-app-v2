@@ -6,29 +6,48 @@ const publicRoutes = ['/login', '/auth/callback'];
 
 export default function AuthGuard({ children }) {
   const router = useRouter();
-  // "undefined" means the session is still being determined.
   const [session, setSession] = useState(undefined);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+      } catch (error) {
+        console.error('Session fetch error:', error);
+        setSession(null);
+      }
     };
     getSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state change:', event);
       setSession(session);
     });
+
     return () => subscription?.unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (!router.isReady || session === undefined) return;
-    if (!session && !publicRoutes.includes(router.pathname)) {
-      router.push('/login');
-    } else if (session && router.pathname === '/login') {
-      router.push('/');
-    }
+    if (!router.isReady || session === undefined || isNavigating) return;
+
+    const handleNavigation = async () => {
+      try {
+        setIsNavigating(true);
+        if (!session && !publicRoutes.includes(router.pathname)) {
+          await router.push('/login');
+        } else if (session && router.pathname === '/login') {
+          await router.push('/');
+        }
+      } catch (error) {
+        console.error('Navigation error:', error);
+      } finally {
+        setIsNavigating(false);
+      }
+    };
+
+    handleNavigation();
   }, [router.isReady, session, router.pathname]);
 
   if (session === undefined) {
