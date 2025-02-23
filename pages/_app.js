@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import AuthGuard from '../components/AuthGuard';
 import { useRouter } from 'next/router';
-import { isPublicRoute } from '../utils/supabaseClient';
+import { isPublicRoute, ensureProfile } from '../utils/supabaseClient';
 
 function MyApp({ Component, pageProps }) {
   const [isInitializing, setIsInitializing] = useState(true);
@@ -28,20 +28,18 @@ function MyApp({ Component, pageProps }) {
           timeoutPromise
         ]);
 
-        if (mounted) {
-          if (!session && !isPublicRoute(router.pathname)) {
-            // No valid session after timeout, redirect to login
-            router.push('/login');
-          } else if (session) {
-            // Valid session, ensure we're not stuck on a public route
-            if (isPublicRoute(router.pathname)) {
-              router.push('/');
-            }
+        if (mounted && session?.user) {
+          // Ensure profile exists when session is valid
+          await ensureProfile(session.user);
+          
+          if (isPublicRoute(router.pathname)) {
+            router.push('/');
           }
+        } else if (mounted && !session && !isPublicRoute(router.pathname)) {
+          router.push('/login');
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
-        // On timeout or error, redirect to login for non-public routes
         if (mounted && !isPublicRoute(router.pathname)) {
           router.push('/login');
         }
